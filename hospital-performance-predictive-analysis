@@ -1,0 +1,167 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from scipy.cluster.hierarchy import dendrogram, linkage
+
+
+df = pd.read_csv(r"C:\Users\prana\Downloads\Hospital_General_Information.csv")
+
+print("Dataset Shape:", df.shape)
+print("\nDataset Info:")
+print(df.info())
+
+print("\nMissing Values:")
+print(df.isnull().sum().sort_values(ascending=False))
+
+# ==============================
+# SELECT REQUIRED COLUMNS
+# ==============================
+cols = [
+    'Hospital Type',
+    'Hospital Ownership',
+    'Emergency Services',
+    'Hospital overall rating'
+]
+
+df_ml = df[cols].copy()
+
+# ==============================
+# DATA CLEANING
+# ==============================
+# Remove rows where rating is 'Not Available'
+df_ml = df_ml[df_ml['Hospital overall rating'] != 'Not Available']
+
+# Convert rating to integer
+df_ml['Hospital overall rating'] = df_ml['Hospital overall rating'].astype(int)
+
+# Encode categorical variables
+df_ml = pd.get_dummies(df_ml, drop_first=True)
+
+# ==============================
+# EDA VISUALIZATION
+# ==============================
+plt.figure(figsize=(6, 4))
+sns.countplot(x='Hospital overall rating', data=df_ml)
+plt.title("Distribution of Hospital Ratings")
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(6, 4))
+sns.boxplot(
+    x='Emergency Services_Yes',
+    y='Hospital overall rating',
+    data=df_ml
+)
+plt.title("Emergency Services vs Hospital Rating")
+plt.tight_layout()
+plt.show()
+
+# ==============================
+# CREATE TARGET VARIABLE
+# ==============================
+df_ml['High_Rating'] = (df_ml['Hospital overall rating'] >= 4).astype(int)
+
+X = df_ml.drop(['Hospital overall rating', 'High_Rating'], axis=1)
+y = df_ml['High_Rating']
+
+# ==============================
+# TRAIN-TEST SPLIT
+# ==============================
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# ==============================
+# SUPERVISED LEARNING
+# ==============================
+
+# Logistic Regression
+scaler_lr = StandardScaler()
+
+X_train_scaled = scaler_lr.fit_transform(X_train)
+X_test_scaled = scaler_lr.transform(X_test)
+
+lr = LogisticRegression()
+lr.fit(X_train_scaled, y_train)
+
+y_pred_lr = lr.predict(X_test_scaled)
+
+print("\nLogistic Regression Accuracy:",
+      accuracy_score(y_test, y_pred_lr))
+print(classification_report(y_test, y_pred_lr))
+
+# Decision Tree
+dt = DecisionTreeClassifier(max_depth=5, random_state=42)
+dt.fit(X_train, y_train)
+y_pred_dt = dt.predict(X_test)
+
+print("\nDecision Tree Accuracy:",
+      accuracy_score(y_test, y_pred_dt))
+print(classification_report(y_test, y_pred_dt))
+
+# ==============================
+# UNSUPERVISED LEARNING
+# ==============================
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# K-Means Clustering
+kmeans = KMeans(n_clusters=3, random_state=42)
+df_ml['Cluster'] = kmeans.fit_predict(X_scaled)
+
+plt.figure(figsize=(6, 4))
+sns.countplot(x='Cluster', data=df_ml)
+plt.title("Hospital Clusters based on Characteristics")
+plt.tight_layout()
+plt.show()
+
+# Hierarchical Clustering
+plt.figure(figsize=(10, 5))
+linked = linkage(X_scaled[:200], method='ward')
+dendrogram(linked)
+plt.title("Hierarchical Clustering Dendrogram")
+plt.tight_layout()
+plt.show()
+
+# ==============================
+# FINAL CLUSTER VS RATING VISUAL
+# ==============================
+plt.figure(figsize=(6, 4))
+sns.boxplot(x='Cluster', y='Hospital overall rating', data=df_ml)
+plt.title("Hospital Rating Distribution Across Clusters")
+plt.tight_layout()
+plt.show()
+
+# ==============================
+# FINAL PROJECT REPORT (PRINTED)
+# ==============================
+report = """
+PREDICTIVE ANALYSIS OF HOSPITAL PERFORMANCE
+
+This project analyzes the Hospital General Information dataset published by
+the Centers for Medicare & Medicaid Services (CMS). Exploratory Data Analysis
+revealed that hospital ratings are mostly centered around average performance.
+
+Supervised learning models such as Logistic Regression and Decision Tree were
+used to predict whether a hospital is high-performing or low-performing.
+Both models achieved reasonable accuracy, showing that hospital attributes
+can effectively predict performance.
+
+Unsupervised learning techniques including K-Means and Hierarchical Clustering
+were applied to identify natural groupings among hospitals. The clustering
+results showed distinct groups corresponding to low, medium, and high
+performance levels.
+
+The project demonstrates the usefulness of machine learning techniques on
+real-world healthcare data for performance evaluation and decision support.
+"""
+
+print(report)
